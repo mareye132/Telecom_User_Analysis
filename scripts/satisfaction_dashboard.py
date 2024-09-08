@@ -1,3 +1,4 @@
+# impporting neccessary libararies
 import streamlit as st
 import pandas as pd
 import psycopg2
@@ -23,7 +24,7 @@ conn = psycopg2.connect(
 )
 
 # Load data from PostgreSQL
-query = "SELECT * FROM user_scores"
+query = "SELECT * FROM xdr_data"
 df = pd.read_sql(query, conn)
 conn.close()
 
@@ -33,7 +34,7 @@ st.title('Customer Satisfaction Analysis Dashboard')
 # Display top 10 satisfied customers
 st.subheader('Top 10 Satisfied Customers')
 top_10_satisfied = df.nlargest(10, 'satisfaction_score')
-st.write(top_10_satisfied[['bearer_id', 'satisfaction_score']])
+st.write(top_10_satisfied[['Bearer_id', 'satisfaction_score']])
 
 # Plot Satisfaction Scores Distribution
 st.subheader('Satisfaction Scores Distribution')

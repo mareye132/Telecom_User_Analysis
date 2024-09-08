@@ -1,3 +1,4 @@
+#importing neccessary liberaries
 import pandas as pd
 import psycopg2
 from sklearn.cluster import KMeans
