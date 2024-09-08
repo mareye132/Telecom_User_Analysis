@@ -1,11 +1,37 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+import psycopg2
+#from sqlalchemy import create_engine
+#import psycopg2
+# Database connection function
+def get_db_connection():
+    """Establish a connection to the PostgreSQL database."""
+    try:
+        conn_string = psycopg2.connect(
+        dbname='postgres',
+        user='postgres',
+        password='Maru@132',
+        host='localhost',
+        port='5432'
+    )
+        #engine = create_engine(conn_string)
+        return conn_string
+    except Exception as e:
+        print(f"Error connecting to the database: {e}")
+        return None
 
-def load_data_from_csv(file_path):
-    """Load data from a CSV file."""
-    return pd.read_csv(file_path)
+def load_data_from_postgres():
+    """Load data from a PostgreSQL database."""
+    conn_string = get_db_connection()
+    if conn_string:
+        query = "SELECT * FROM xdr_data"
+        df = pd.read_sql_query(query, conn_string)
+        return df
+    else:
+        return None
 
+# Metrics, Analysis and Plotting Functions
 def basic_metrics(df):
     """Compute basic metrics for each numeric column."""
     numeric_df = df.select_dtypes(include='number')
@@ -81,49 +107,47 @@ def kmeans_clustering(df):
 
 # Example usage
 if __name__ == "__main__":
-    path = 'C:/Users/user/Desktop/Github/TelecomUserAnalysis/data/challenge_data_source.csv'
-    df = load_data_from_csv(path)
+    df = load_data_from_postgres()
 
-    # Update quantitative_vars with actual columns from DataFrame
-    quantitative_vars = [
-        'Avg RTT DL (ms)', 'Avg RTT UL (ms)', 'Avg Bearer TP DL (kbps)', 'Avg Bearer TP UL (kbps)',
-        'TCP DL Retrans. Vol (Bytes)', 'TCP UL Retrans. Vol (Bytes)', 'DL TP < 50 Kbps (%)',
-        '50 Kbps < DL TP < 250 Kbps (%)', '250 Kbps < DL TP < 1 Mbps (%)', 'DL TP > 1 Mbps (%)',
-        'UL TP < 10 Kbps (%)', '10 Kbps < UL TP < 50 Kbps (%)', '50 Kbps < UL TP < 300 Kbps (%)',
-        'UL TP > 300 Kbps (%)', 'HTTP DL (Bytes)', 'HTTP UL (Bytes)', 'Activity Duration DL (ms)',
-        'Activity Duration UL (ms)', 'Social Media DL (Bytes)', 'Google DL (Bytes)', 'Email DL (Bytes)',
-        'Youtube DL (Bytes)', 'Netflix DL (Bytes)', 'Gaming DL (Bytes)', 'Other DL (Bytes)',
-        'Total UL (Bytes)', 'Total DL (Bytes)'
-    ]
+    if df is not None:
+        quantitative_vars = [
+            'Avg RTT DL (ms)', 'Avg RTT UL (ms)', 'Avg Bearer TP DL (kbps)', 'Avg Bearer TP UL (kbps)',
+            'TCP DL Retrans. Vol (Bytes)', 'TCP UL Retrans. Vol (Bytes)', 'DL TP < 50 Kbps (%)',
+            '50 Kbps < DL TP < 250 Kbps (%)', '250 Kbps < DL TP < 1 Mbps (%)', 'DL TP > 1 Mbps (%)',
+            'UL TP < 10 Kbps (%)', '10 Kbps < UL TP < 50 Kbps (%)', '50 Kbps < UL TP < 300 Kbps (%)',
+            'UL TP > 300 Kbps (%)', 'HTTP DL (Bytes)', 'HTTP UL (Bytes)', 'Activity Duration DL (ms)',
+            'Activity Duration UL (ms)', 'Social Media DL (Bytes)', 'Google DL (Bytes)', 'Email DL (Bytes)',
+            'Youtube DL (Bytes)', 'Netflix DL (Bytes)', 'Gaming DL (Bytes)', 'Other DL (Bytes)',
+            'Total UL (Bytes)', 'Total DL (Bytes)'
+        ]
 
-    print("Basic Metrics:")
-    metrics = basic_metrics(df)
-    for key, value in metrics.items():
-        print(f"{key}:\n{value}\n")
+        print("Basic Metrics:")
+        metrics = basic_metrics(df)
+        for key, value in metrics.items():
+            print(f"{key}:\n{value}\n")
 
-    print("Dispersion Parameters:")
-    dispersion_params = non_graphical_univariate_analysis(df, quantitative_vars)
-    for key, value in dispersion_params.items():
-        print(f"{key}:\n{value}\n")
+        print("Dispersion Parameters:")
+        dispersion_params = non_graphical_univariate_analysis(df, quantitative_vars)
+        for key, value in dispersion_params.items():
+            print(f"{key}:\n{value}\n")
 
-    graphical_univariate_analysis(df, quantitative_vars)
+        graphical_univariate_analysis(df, quantitative_vars)
 
-    # Placeholder for actual applications and total_dl_ul computation
-    applications = []  # Define or load actual applications data
-    total_dl_ul = df['Total DL (Bytes)'] + df['Total UL (Bytes)']
-    bivariate_analysis(df, applications, total_dl_ul)
+        applications = []  # Define or load actual applications data
+        total_dl_ul = df['Total DL (Bytes)'] + df['Total UL (Bytes)']
+        bivariate_analysis(df, applications, total_dl_ul)
 
-    correlation_matrix = correlation_analysis(df, applications)
-    print("Correlation Matrix:")
-    print(correlation_matrix)
+        correlation_matrix = correlation_analysis(df, applications)
+        print("Correlation Matrix:")
+        print(correlation_matrix)
 
-    explained_variance_ratio = dimensionality_reduction(df, applications)
-    print("Explained Variance Ratio:")
-    print(explained_variance_ratio)
+        explained_variance_ratio = dimensionality_reduction(df, applications)
+        print("Explained Variance Ratio:")
+        print(explained_variance_ratio)
 
-    user_traffic = aggregate_user_traffic(df)
-    user_traffic, cluster_centers, cluster_sizes = kmeans_clustering(user_traffic)
-    print("Cluster Centers:")
-    print(cluster_centers)
-    print("Cluster Sizes:")
-    print(cluster_sizes)
+        user_traffic = aggregate_user_traffic(df)
+        user_traffic, cluster_centers, cluster_sizes = kmeans_clustering(user_traffic)
+        print("Cluster Centers:")
+        print(cluster_centers)
+        print("Cluster Sizes:")
+        print(cluster_sizes)

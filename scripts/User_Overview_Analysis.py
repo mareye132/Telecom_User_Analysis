@@ -2,13 +2,27 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.decomposition import PCA
-import streamlit as st
+import psycopg2
 
-# Function to load data from a CSV file
-def load_data_from_csv():
-    """Load data from a CSV file."""
-    path = 'C:/Users/user/Desktop/Github/TelecomUserAnalysis/data/challenge_data_source.csv'
-    df = pd.read_csv(path)
+# Database connection and data loading function
+def get_db_connection():
+    """Establish a connection to the PostgreSQL database."""
+    conn = psycopg2.connect(
+        dbname='postgres',
+        user='postgres',
+        password='Maru@132',
+        host='localhost',
+        port='5432'
+    )
+    
+    return conn
+
+def load_data_from_postgres():
+    """Load data from PostgreSQL database."""
+    conn = get_db_connection()
+    query = "SELECT * FROM xdr_data"  # Modify with your actual table name
+    df = pd.read_sql_query(query, conn)
+    conn.close()
     print("Columns in DataFrame:", df.columns.tolist())  # Print column names for debugging
     return df
 
@@ -57,27 +71,11 @@ def top_5_handsets_per_manufacturer(df):
         top_5_handsets[manufacturer] = df[df['Handset Manufacturer'] == manufacturer]['Handset Type'].value_counts().head(5)
     return top_5_handsets
 
-# 1.2: Interpretation and Recommendation
-def interpretation_and_recommendation():
-    """Make a short interpretation and recommendation for the marketing team."""
-    interpretation = """
-    The top 10 handsets are popular models that should be targeted in marketing campaigns, as they indicate user preferences.
-    The top 3 manufacturers dominate the market, and understanding their top-performing models could help in negotiating marketing deals.
-    The top 5 handsets per manufacturer indicate popular trends in handset usage, which the marketing team can leverage for promoting data plans.
-    """
-    return interpretation
-
 # 1.2: Handle missing values and outliers
 def handle_missing_outliers(df):
     """Handle missing values and outliers."""
-    # Identify numeric columns
     numeric_cols = df.select_dtypes(include=['number']).columns
-    
-    # Fill missing values in numeric columns with the mean
     df[numeric_cols] = df[numeric_cols].fillna(df[numeric_cols].mean())
-    
-    # Optionally handle outliers here
-    
     return df
 
 # 1.2: Variable transformation (Segment into decile classes)
@@ -93,6 +91,7 @@ def segment_users_by_duration(df):
 def non_graphical_univariate_analysis(df):
     """Perform non-graphical univariate analysis."""
     summary_stats = df.describe()
+    print("Summary Statistics:\n", summary_stats)  # Added print statement
     return summary_stats
 
 # 1.2: Graphical Univariate Analysis
@@ -146,50 +145,29 @@ def pca_analysis(df):
     plt.show()
     return pca
 
-# Streamlit Dashboard Integration
-def streamlit_dashboard(df):
-    """Interactive Streamlit dashboard to visualize the analysis."""
-    st.title('Telecom User Overview & Analysis')
+# Main script execution
+if __name__ == "__main__":
+    # Load data
+    df = load_data_from_postgres()
 
-    st.subheader('Top 10 Handsets')
-    top_handsets = top_10_handsets(df)
-    st.write(top_handsets)
+    # Handle missing values and outliers
+    df = handle_missing_outliers(df)
 
-    st.subheader('Top 3 Handset Manufacturers')
-    top_manufacturers = top_3_manufacturers(df)
-    st.write(top_manufacturers)
-
-    st.subheader('Top 5 Handsets per Manufacturer')
-    top_5_handsets = top_5_handsets_per_manufacturer(df)
-    for manufacturer, handsets in top_5_handsets.items():
-        st.write(f'{manufacturer}:')
-        st.write(handsets)
-
-    st.subheader('Interpretation & Recommendation')
-    st.write(interpretation_and_recommendation())
-
-    st.subheader('Univariate Analysis')
-    univariate_summary = non_graphical_univariate_analysis(df)
-    st.write(univariate_summary)
-
-    st.subheader('Graphical Univariate Analysis')
+    # Perform non-graphical and graphical univariate analysis
+    non_graphical_univariate_analysis(df)
     graphical_univariate_analysis(df)
 
-    st.subheader('Bivariate Analysis')
+    # Perform bivariate and correlation analysis
     bivariate_analysis(df)
-
-    st.subheader('Correlation Analysis')
     correlation_analysis(df)
 
-    st.subheader('PCA Analysis')
-    pca = pca_analysis(df)
+    # Perform PCA
+    pca_analysis(df)
 
-# Main function to run the analysis
-def main():
-    df = load_data_from_csv()
-    df = handle_missing_outliers(df)
-    df = segment_users_by_duration(df)
-    streamlit_dashboard(df)
-
-if __name__ == "__main__":
-    main()
+    # Example to visualize top 10 handsets
+    top_handsets = top_10_handsets(df)
+    print("Top 10 Handsets:\n", top_handsets)
+    
+    # Example of aggregated user behavior
+    aggregated_behavior = aggregate_user_behavior(df)
+    print("Aggregated User Behavior:\n", aggregated_behavior)
