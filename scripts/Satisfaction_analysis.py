@@ -65,9 +65,9 @@ df['Handset Type'] = df['Handset Type'].fillna(df['Handset Type'].mode()[0])
 # Feature engineering
 features = df[['TCP DL Retrans. Vol (Bytes)', 'Avg RTT DL (ms)', 'Avg Bearer TP DL (kbps)']]
 
-# Define example centroid values (replace these with actual values from your clustering)
-engagement_centroid = np.array([[50000, 20, 1000]])  # Example values
-experience_centroid = np.array([[60000, 25, 1500]])  # Example values
+# Define example centroid values 
+engagement_centroid = np.array([[50000, 20, 1000]])  
+experience_centroid = np.array([[60000, 25, 1500]])  
 
 # Calculate engagement and experience scores
 df['Engagement_Score'] = euclidean_distances(features, engagement_centroid).flatten()
