@@ -33,8 +33,9 @@ st.title('Customer Satisfaction Analysis Dashboard')
 
 # Display top 10 satisfied customers
 st.subheader('Top 10 Satisfied Customers')
+df.columns=df.columns.str.replace(' ','_')
 top_10_satisfied = df.nlargest(10, 'satisfaction_score')
-st.write(top_10_satisfied[['Bearer_id', 'satisfaction_score']])
+st.write(top_10_satisfied[['Bearer_Id', 'satisfaction_score']])
 
 # Plot Satisfaction Scores Distribution
 st.subheader('Satisfaction Scores Distribution')
