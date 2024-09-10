@@ -95,3 +95,25 @@ elif option == "Data Filtering":
     st.info("Filter data based on specific criteria")
     filtered_data = filter_data(customer_agg)
     st.write(filtered_data)
+
+# Footer
+st.markdown(
+    """
+    <style>
+    .footer {
+        position: fixed;
+        bottom: 0;
+        width: 100%;
+        background-color: #f1f1f1;
+        text-align: center;
+        padding: 10px;
+        font-size: 14px;
+        color: #333;
+    }
+    </style>
+    <div class="footer">
+        <p>Designed by Mareye Zeleke Mekonen</p>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
