@@ -1,21 +1,20 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+from sklearn.preprocessing import StandardScaler
+from sklearn.cluster import KMeans
 import psycopg2
-#from sqlalchemy import create_engine
-#import psycopg2
 # Database connection function
 def get_db_connection():
     """Establish a connection to the PostgreSQL database."""
     try:
         conn_string = psycopg2.connect(
-        dbname='postgres',
-        user='postgres',
-        password='Maru@132',
-        host='localhost',
-        port='5432'
-    )
-        #engine = create_engine(conn_string)
+            dbname='postgres',
+            user='postgres',
+            password='Maru@132',
+            host='localhost',
+            port='5432'
+        )
         return conn_string
     except Exception as e:
         print(f"Error connecting to the database: {e}")
@@ -31,123 +30,119 @@ def load_data_from_postgres():
     else:
         return None
 
-# Metrics, Analysis and Plotting Functions
-def basic_metrics(df):
-    """Compute basic metrics for each numeric column."""
-    numeric_df = df.select_dtypes(include='number')
-    return {
-        'Mean': numeric_df.mean(),
-        'Median': numeric_df.median(),
-        'Standard Deviation': numeric_df.std(),
-        'Variance': numeric_df.var()
-    }
+def aggregate_engagement_metrics(df):
+    """Aggregate engagement metrics per customer ID."""
+    if 'MSISDN/Number' not in df.columns or 'Bearer Id' not in df.columns:
+        print("Required columns are missing from the DataFrame.")
+        return None, None, None, None
 
-def non_graphical_univariate_analysis(df, quantitative_vars):
-    """Compute dispersion parameters for each quantitative variable."""
-    print("DataFrame columns:", df.columns)
+    df['Session Duration'] = df['Activity Duration DL (ms)'] + df['Activity Duration UL (ms)']
+    df['Session Frequency'] = df.groupby('MSISDN/Number')['Bearer Id'].transform('count')
+    df['Total Traffic'] = df['Total DL (Bytes)'] + df['Total UL (Bytes)']
     
-    # Filter quantitative_vars based on actual column names
-    quantitative_vars = [var for var in quantitative_vars if var in df.columns]
-    if not quantitative_vars:
-        raise ValueError("None of the specified quantitative variables were found in the DataFrame.")
+    engagement_metrics = df.groupby('MSISDN/Number').agg({
+        'Session Frequency': 'mean',
+        'Session Duration': 'mean',
+        'Total Traffic': 'sum'
+    }).reset_index()
     
-    quantitative_df = df[quantitative_vars].select_dtypes(include='number')
-    dispersion_params = {
-        'Variance': quantitative_df.var(),
-        'Skewness': quantitative_df.skew(),
-        'Kurtosis': quantitative_df.kurt()
-    }
-    return dispersion_params
+    top_10_frequency = engagement_metrics.nlargest(10, 'Session Frequency')
+    top_10_duration = engagement_metrics.nlargest(10, 'Session Duration')
+    top_10_traffic = engagement_metrics.nlargest(10, 'Total Traffic')
 
-def graphical_univariate_analysis(df, quantitative_vars):
-    """Generate graphical univariate analysis."""
-    quantitative_df = df[quantitative_vars].select_dtypes(include='number')
-    for column in quantitative_df.columns:
-        plt.figure(figsize=(12, 6))
-        sns.histplot(quantitative_df[column], kde=True)
-        plt.title(f'Distribution of {column}')
-        plt.xlabel(column)
-        plt.ylabel('Frequency')
-        plt.show()
-
-def bivariate_analysis(df, applications, total_dl_ul):
-    """Perform bivariate analysis."""
-    if 'Total DL (Bytes)' in df.columns and 'Total UL (Bytes)' in df.columns:
-        plt.figure(figsize=(12, 6))
-        sns.scatterplot(x=df['Total DL (Bytes)'], y=df['Total UL (Bytes)'])
-        plt.title('Total Download vs Total Upload')
-        plt.xlabel('Total Download (Bytes)')
-        plt.ylabel('Total Upload (Bytes)')
-        plt.show()
-
-def correlation_analysis(df, applications):
-    """Perform correlation analysis."""
-    numeric_df = df.select_dtypes(include='number')
-    correlation_matrix = numeric_df.corr()
-    plt.figure(figsize=(12, 10))
-    sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', fmt='.2f')
-    plt.title('Correlation Matrix')
-    plt.show()
-    return correlation_matrix
-
-def dimensionality_reduction(df, applications):
-    """Perform dimensionality reduction (placeholder)."""
-    print("Dimensionality reduction is not implemented.")
-    return []
-
-def aggregate_user_traffic(df):
-    """Aggregate user traffic data (placeholder)."""
-    print("User traffic aggregation is not implemented.")
-    return df
+    return engagement_metrics, top_10_frequency, top_10_duration, top_10_traffic
 
 def kmeans_clustering(df):
-    """Perform KMeans clustering (placeholder)."""
-    print("KMeans clustering is not implemented.")
-    return df, None, None
+    """Perform KMeans clustering."""
+    if df is None:
+        return None, None, None
+    
+    # Normalize the data
+    scaler = StandardScaler()
+    df_scaled = scaler.fit_transform(df[['Session Frequency', 'Session Duration', 'Total Traffic']])
+    
+    # Determine the optimal value of k using the elbow method
+    wcss = []
+    for i in range(1, 11):
+        kmeans = KMeans(n_clusters=i, init='k-means++', max_iter=300, n_init=10, random_state=42)
+        kmeans.fit(df_scaled)
+        wcss.append(kmeans.inertia_)
 
-# Example usage
+    # Plot elbow method
+    plt.figure(figsize=(8, 5))
+    plt.plot(range(1, 11), wcss, marker='o')
+    plt.title('Elbow Method for Optimal k')
+    plt.xlabel('Number of clusters')
+    plt.ylabel('WCSS')
+    plt.show()
+    
+    # Based on the elbow plot, choose the optimal k
+    optimal_k = 3
+    kmeans = KMeans(n_clusters=optimal_k, init='k-means++', max_iter=300, n_init=10, random_state=42)
+    y_kmeans = kmeans.fit_predict(df_scaled)
+    
+    df['Cluster'] = y_kmeans
+    cluster_centers = kmeans.cluster_centers_
+    cluster_sizes = df['Cluster'].value_counts()
+
+    return df, cluster_centers, cluster_sizes
+
+def compute_cluster_stats(df):
+    """Compute statistics for each cluster."""
+    cluster_stats = df.groupby('Cluster').agg({
+        'Session Frequency': ['min', 'max', 'mean', 'sum'],
+        'Session Duration': ['min', 'max', 'mean', 'sum'],
+        'Total Traffic': ['min', 'max', 'mean', 'sum']
+    })
+    return cluster_stats
+
+def plot_top_applications(df):
+    """Plot the top 3 most used applications."""
+    if 'Google DL (Bytes)' not in df.columns or 'Social Media DL (Bytes)' not in df.columns:
+        print("Required columns are missing from the DataFrame.")
+        return
+    
+    app_traffic = df[['Google DL (Bytes)', 'Social Media DL (Bytes)', 'Email DL (Bytes)']].sum()
+    top_apps = app_traffic.nlargest(3)
+    
+    plt.figure(figsize=(10, 6))
+    sns.barplot(x=top_apps.index, y=top_apps.values)
+    plt.title('Top 3 Most Used Applications')
+    plt.xlabel('Application')
+    plt.ylabel('Total Traffic (Bytes)')
+    plt.show()
+
+# Main code
 if __name__ == "__main__":
     df = load_data_from_postgres()
 
     if df is not None:
-        quantitative_vars = [
-            'Avg RTT DL (ms)', 'Avg RTT UL (ms)', 'Avg Bearer TP DL (kbps)', 'Avg Bearer TP UL (kbps)',
-            'TCP DL Retrans. Vol (Bytes)', 'TCP UL Retrans. Vol (Bytes)', 'DL TP < 50 Kbps (%)',
-            '50 Kbps < DL TP < 250 Kbps (%)', '250 Kbps < DL TP < 1 Mbps (%)', 'DL TP > 1 Mbps (%)',
-            'UL TP < 10 Kbps (%)', '10 Kbps < UL TP < 50 Kbps (%)', '50 Kbps < UL TP < 300 Kbps (%)',
-            'UL TP > 300 Kbps (%)', 'HTTP DL (Bytes)', 'HTTP UL (Bytes)', 'Activity Duration DL (ms)',
-            'Activity Duration UL (ms)', 'Social Media DL (Bytes)', 'Google DL (Bytes)', 'Email DL (Bytes)',
-            'Youtube DL (Bytes)', 'Netflix DL (Bytes)', 'Gaming DL (Bytes)', 'Other DL (Bytes)',
-            'Total UL (Bytes)', 'Total DL (Bytes)'
-        ]
+        # Inspect columns
+        print("Column Names in DataFrame:", df.columns)
 
-        print("Basic Metrics:")
-        metrics = basic_metrics(df)
-        for key, value in metrics.items():
-            print(f"{key}:\n{value}\n")
+        # Aggregate engagement metrics
+        engagement_metrics, top_10_frequency, top_10_duration, top_10_traffic = aggregate_engagement_metrics(df)
+        
+        if engagement_metrics is not None:
+            print("Top 10 Customers by Session Frequency:")
+            print(top_10_frequency)
+            print("\nTop 10 Customers by Session Duration:")
+            print(top_10_duration)
+            print("\nTop 10 Customers by Total Traffic:")
+            print(top_10_traffic)
 
-        print("Dispersion Parameters:")
-        dispersion_params = non_graphical_univariate_analysis(df, quantitative_vars)
-        for key, value in dispersion_params.items():
-            print(f"{key}:\n{value}\n")
+            # Perform KMeans clustering
+            df_clustered, cluster_centers, cluster_sizes = kmeans_clustering(engagement_metrics)
+            if df_clustered is not None:
+                print("\nCluster Centers:")
+                print(cluster_centers)
+                print("\nCluster Sizes:")
+                print(cluster_sizes)
 
-        graphical_univariate_analysis(df, quantitative_vars)
+                # Compute cluster statistics
+                cluster_stats = compute_cluster_stats(df_clustered)
+                print("\nCluster Statistics:")
+                print(cluster_stats)
 
-        applications = []  # Define or load actual applications data
-        total_dl_ul = df['Total DL (Bytes)'] + df['Total UL (Bytes)']
-        bivariate_analysis(df, applications, total_dl_ul)
-
-        correlation_matrix = correlation_analysis(df, applications)
-        print("Correlation Matrix:")
-        print(correlation_matrix)
-
-        explained_variance_ratio = dimensionality_reduction(df, applications)
-        print("Explained Variance Ratio:")
-        print(explained_variance_ratio)
-
-        user_traffic = aggregate_user_traffic(df)
-        user_traffic, cluster_centers, cluster_sizes = kmeans_clustering(user_traffic)
-        print("Cluster Centers:")
-        print(cluster_centers)
-        print("Cluster Sizes:")
-        print(cluster_sizes)
+                # Plot top applications
+                plot_top_applications(df)
