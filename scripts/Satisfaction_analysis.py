@@ -1,12 +1,14 @@
-#importing neccessary liberaries
+# Import necessary libraries
 import pandas as pd
 import psycopg2
 from sklearn.cluster import KMeans
 from sklearn.metrics import euclidean_distances
 from sklearn.linear_model import LinearRegression
 import numpy as np
+import mlflow  # For model tracking (MlOps)
+import os
 
-# Database connection parameters
+# Database connection parameters for PostgreSQL
 db_params = {
     'dbname': 'postgres',
     'user': 'postgres',
@@ -69,11 +71,11 @@ features = df[['TCP DL Retrans. Vol (Bytes)', 'Avg RTT DL (ms)', 'Avg Bearer TP 
 engagement_centroid = np.array([[50000, 20, 1000]])  
 experience_centroid = np.array([[60000, 25, 1500]])  
 
-# Calculate engagement and experience scores
+# Task 4.1 - Calculate engagement and experience scores
 df['Engagement_Score'] = euclidean_distances(features, engagement_centroid).flatten()
 df['Experience_Score'] = euclidean_distances(features, experience_centroid).flatten()
 
-# Calculate satisfaction score
+# Task 4.2 - Calculate satisfaction score
 df['Satisfaction_Score'] = (df['Engagement_Score'] + df['Experience_Score']) / 2
 
 # Report top 10 satisfied customers
@@ -81,19 +83,31 @@ top_10_satisfied = df[['Bearer Id', 'Satisfaction_Score']].sort_values(by='Satis
 print("Top 10 Satisfied Customers:")
 print(top_10_satisfied)
 
-# Regression model
+# Task 4.3 - Regression model to predict satisfaction score
 X = df[['Engagement_Score', 'Experience_Score']]
 y = df['Satisfaction_Score']
 model = LinearRegression()
+
+# Start model tracking with MLflow
+mlflow.start_run()
+
 model.fit(X, y)
 print("Regression Coefficients:")
 print(model.coef_)
 
-# K-means clustering on engagement and experience scores
+# Log the model and parameters with MLflow
+mlflow.log_param("regression_model", "LinearRegression")
+mlflow.log_param("input_features", X.columns.tolist())
+mlflow.log_metric("r_squared", model.score(X, y))
+
+# End model tracking
+mlflow.end_run()
+
+# Task 4.4 - K-means clustering on engagement and experience scores
 kmeans = KMeans(n_clusters=2, random_state=0).fit(X)
 df['Eng_Exp_Cluster'] = kmeans.labels_
 
-# Aggregate average satisfaction & experience score per cluster
+# Task 4.5 - Aggregate average satisfaction & experience score per cluster
 cluster_summary = df.groupby('Eng_Exp_Cluster').agg({
     'Satisfaction_Score': 'mean',
     'Experience_Score': 'mean'
@@ -101,27 +115,30 @@ cluster_summary = df.groupby('Eng_Exp_Cluster').agg({
 print("Cluster Summary:")
 print(cluster_summary)
 
-# Create a temporary table and insert data
-create_temp_table_query = """
-CREATE TEMP TABLE temp_scores (
-    "Bearer Id" VARCHAR(50),
+# Task 4.6 - Export the table to PostgreSQL (instead of MySQL)
+# Insert the results back into PostgreSQL
+insert_query_pg = """
+INSERT INTO user_scores (Bearer_Id, Engagement_Score, Experience_Score, Satisfaction_Score, Eng_Exp_Cluster)
+VALUES (%s, %s, %s, %s, %s)
+"""
+
+# Create table if it doesn't exist in PostgreSQL
+create_table_pg = """
+CREATE TABLE IF NOT EXISTS user_scores (
+    Bearer_Id VARCHAR(50),
     Engagement_Score FLOAT,
     Experience_Score FLOAT,
     Satisfaction_Score FLOAT,
     Eng_Exp_Cluster INT
 )
 """
-cursor.execute(create_temp_table_query)
+cursor.execute(create_table_pg)
 conn_postgres.commit()
 
-# Insert data into the temporary table
-insert_query = """
-INSERT INTO temp_scores ("Bearer Id", Engagement_Score, Experience_Score, Satisfaction_Score, Eng_Exp_Cluster)
-VALUES (%s, %s, %s, %s, %s)
-"""
+# Insert data into PostgreSQL
 for _, row in df.iterrows():
-    cursor.execute(insert_query, (
-        str(row['Bearer Id']),  # Ensure 'Bearer Id' is a string
+    cursor.execute(insert_query_pg, (
+        str(row['Bearer Id']), 
         float(row['Engagement_Score']),
         float(row['Experience_Score']),
         float(row['Satisfaction_Score']),
@@ -129,23 +146,17 @@ for _, row in df.iterrows():
     ))
 conn_postgres.commit()
 
-# Update xdr_data table with new scores using type casting
-update_query = """
-UPDATE xdr_data
-SET engagement_score = subquery.Engagement_Score,
-    experience_score = subquery.Experience_Score,
-    satisfaction_score = subquery.Satisfaction_Score,
-    eng_exp_cluster = subquery.Eng_Exp_Cluster
-FROM (
-    SELECT "Bearer Id", Engagement_Score, Experience_Score, Satisfaction_Score, Eng_Exp_Cluster
-    FROM temp_scores
-) AS subquery
-WHERE xdr_data."Bearer Id"::VARCHAR = subquery."Bearer Id"::VARCHAR;
-"""
-cursor.execute(update_query)
-conn_postgres.commit()
+# Verify data in PostgreSQL (run a select query)
+cursor.execute("SELECT * FROM user_scores LIMIT 5")
+result = cursor.fetchall()
+print("Data in PostgreSQL (first 5 rows):", result)
 
 # Clean up
 cursor.close()
 conn_postgres.close()
-print("Script completed successfully.")
+
+# Task 4.7 - Model deployment tracking using Docker/MlOps tool (mlflow setup is done above)
+print("To deploy and track models, use Docker or any CI/CD tools to create an image and track changes.")
+
+# Script completion
+print("Satisfaction Analysis script completed successfully.")
