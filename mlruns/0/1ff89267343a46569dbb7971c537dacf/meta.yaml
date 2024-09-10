@@ -1,0 +1,15 @@
+artifact_uri: file:///C:/Users/user/Desktop/Github/TelecomUserAnalysis/mlruns/0/1ff89267343a46569dbb7971c537dacf/artifacts
+end_time: 1725958873396
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: 1ff89267343a46569dbb7971c537dacf
+run_name: awesome-mouse-618
+run_uuid: 1ff89267343a46569dbb7971c537dacf
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1725958872921
+status: 3
+tags: []
+user_id: user

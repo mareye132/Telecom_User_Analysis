@@ -1,0 +1,15 @@
+artifact_uri: file:///C:/Users/user/Desktop/Github/TelecomUserAnalysis/mlruns/0/0c9c9bdaf1f24fa7b1301c58f0cc8194/artifacts
+end_time: 1725970226961
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: 0c9c9bdaf1f24fa7b1301c58f0cc8194
+run_name: magnificent-crow-835
+run_uuid: 0c9c9bdaf1f24fa7b1301c58f0cc8194
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1725970226522
+status: 3
+tags: []
+user_id: user
