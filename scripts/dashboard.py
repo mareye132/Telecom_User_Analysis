@@ -22,7 +22,7 @@ except pd.errors.ParserError:
 def display_crossbonding_results(df):
     st.subheader("Crossbonding Data Analysis")  # Adding a clear label
     if 'Cluster' not in df.columns:
-        st.warning("The 'Cluster' column is missing in the dataset. Displaying available data instead.")
+        #st.warning("The 'Cluster' column is missing in the dataset. Displaying available data instead.")
         st.write(df)  # Display the entire dataset
         return
 
