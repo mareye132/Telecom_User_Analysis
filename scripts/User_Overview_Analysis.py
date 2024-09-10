@@ -14,7 +14,6 @@ def get_db_connection():
         host='localhost',
         port='5432'
     )
-    
     return conn
 
 def load_data_from_postgres():
@@ -76,6 +75,7 @@ def handle_missing_outliers(df):
     """Handle missing values and outliers."""
     numeric_cols = df.select_dtypes(include=['number']).columns
     df[numeric_cols] = df[numeric_cols].fillna(df[numeric_cols].mean())
+    # Outlier handling (e.g., z-score method) can be added here
     return df
 
 # 1.2: Variable transformation (Segment into decile classes)
@@ -114,6 +114,8 @@ def bivariate_analysis(df):
             raise KeyError(f"Column '{app}' not found in DataFrame")
         sns.scatterplot(x=total_data, y=df[app])
         plt.title(f'Total Data vs {app.capitalize()} Usage')
+        plt.xlabel('Total Data (DL+UL)')
+        plt.ylabel(f'{app.capitalize()} Usage')
         plt.show()
 
 # 1.2: Correlation Analysis
@@ -143,6 +145,7 @@ def pca_analysis(df):
     plt.ylabel('Principal Component 2')
     plt.title('PCA - Application Usage')
     plt.show()
+    print("PCA Explained Variance Ratios:", pca.explained_variance_ratio_)
     return pca
 
 # Main script execution
@@ -153,21 +156,31 @@ if __name__ == "__main__":
     # Handle missing values and outliers
     df = handle_missing_outliers(df)
 
-    # Perform non-graphical and graphical univariate analysis
+    # Aggregate user behavior
+    aggregated_df = aggregate_user_behavior(df)
+    print("Aggregated User Behavior:\n", aggregated_df.head())
+
+    # Top 10 handsets
+    print("Top 10 Handsets:\n", top_10_handsets(df))
+
+    # Top 3 manufacturers and top 5 handsets per manufacturer
+    top_manufacturers = top_3_manufacturers(df)
+    print("Top 3 Handset Manufacturers:\n", top_manufacturers)
+    top_handsets_per_manufacturer = top_5_handsets_per_manufacturer(df)
+    print("Top 5 Handsets per Manufacturer:\n", top_handsets_per_manufacturer)
+
+    # Segment users by duration
+    df = segment_users_by_duration(df)
+
+    # Univariate Analysis
     non_graphical_univariate_analysis(df)
     graphical_univariate_analysis(df)
 
-    # Perform bivariate and correlation analysis
+    # Bivariate Analysis
     bivariate_analysis(df)
+
+    # Correlation Analysis
     correlation_analysis(df)
 
-    # Perform PCA
+    # PCA
     pca_analysis(df)
-
-    # Example to visualize top 10 handsets
-    top_handsets = top_10_handsets(df)
-    print("Top 10 Handsets:\n", top_handsets)
-    
-    # Example of aggregated user behavior
-    aggregated_behavior = aggregate_user_behavior(df)
-    print("Aggregated User Behavior:\n", aggregated_behavior)
